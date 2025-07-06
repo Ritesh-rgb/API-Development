@@ -3,8 +3,6 @@
 
 ![PyPI - Python Version](https://img.shields.io/badge/python-3.9-blue)
 
-This repository contains a Rest API example project developed during a live coding session. The session was conducted in collaboration with the Bursa Bilisim Toplulugu.
-
 
 ## Project Description
 
