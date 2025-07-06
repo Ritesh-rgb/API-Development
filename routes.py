@@ -1,81 +1,65 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
 
 from ..database import get_db
 from . import schemas, models
-
-from apps.directors.models import Director as DirectorModel
+from apps.movies.schemas import Movie as MovieSchema
+from apps.movies.models import Movie as MovieModel
 
 
 router = APIRouter(
-    tags = ["Movies"]
+    tags = ["Directors"]
 )
 
 
-@router.get('/movies', response_model=List[schemas.Movie])
-def get_movies( title: str=None,
-                rating: float=None,
-                min_year: int=None,
-                max_year: int=None,
-                db: Session = Depends(get_db)):
-    query = db.query(models.Movie)
-    if title:
-        query = query.filter(models.Movie.title.ilike(f"%{title}%"))
-    if rating is not None:
-        query = query.filter(or_(models.Movie.rating==rating, models.Movie.rating.like(f"{rating}")))
-    if min_year:
-        query = query.filter(models.Movie.year >= min_year)
-    if max_year:
-        query = query.filter(models.Movie.year <= max_year)
-    movies = query.all()
-    return movies
+@router.get('/directors', response_model=List[schemas.Director])
+def get_directors(db: Session = Depends(get_db)):
+    directors = db.query(models.Director).all()
+    return directors
 
 
-@router.get('/movies/{movie_id}', response_model=schemas.Movie)
-def get_movie(movie_id: int, db: Session = Depends(get_db)):
-    db_movie = db.query(models.Movie).filter(models.Movie.id == movie_id).first()
-    if not db_movie:
-        raise HTTPException(status_code=404, detail="Movie not found")
-    return db_movie
+@router.get('/directors/{director_id}', response_model=schemas.Director)
+def get_director(director_id: int, db: Session = Depends(get_db)):
+    director = db.query(models.Director).filter(models.Director.id == director_id).first()
+    if not director:
+        raise HTTPException(status_code=404, detail="Director not found")
+    return director
 
 
-@router.post('/movies', response_model=schemas.Movie)
-def create_movie(movie: schemas.MovieCreate, db: Session = Depends(get_db)):
-    if not db.query(DirectorModel).filter(DirectorModel.id == movie.director_id).first():
-        raise HTTPException(status_code=400, detail="Invalid director_id")
-    db_movie = models.Movie(
-        title=movie.title,
-        year=movie.year,
-        rating=movie.rating,
-        runtime=movie.runtime,
-        genre=movie.genre,
-        director_id=movie.director_id
-    )
-    db.add(db_movie)
+@router.post('/directors', response_model=schemas.Director, status_code=status.HTTP_201_CREATED)
+def create_director(director: schemas.DirectorCreate, db: Session = Depends(get_db)):
+    new_director = models.Director(name=director.name)
+    db.add(new_director)
     db.commit()
-    db.refresh(db_movie)
-    return db_movie
+    db.refresh(new_director)
+    return new_director
 
 
-@router.put('/movies/{movie_id}', response_model=schemas.Movie)
-def update_movie(movie_id: int, movie_update: schemas.MovieCreate, db: Session = Depends(get_db)):
-    db_movie = db.query(models.Movie).filter(models.Movie.id == movie_id).first()
-    if not movie_id:
-        raise HTTPException(status_code=404, detail="Movie not found")
-    for field, value in movie_update.dict(exclude_unset=True).items():
-        setattr(db_movie, field, value)
+@router.put('/directors/{director_id}', response_model=schemas.Director)
+def update_director(director_id: int, director_update: schemas.DirectorCreate, db: Session = Depends(get_db)):
+    db_director = db.query(models.Director).filter(models.Director.id == director_id).first()
+    if not db_director:
+        raise HTTPException(status_code=404, detail="Director not found")
+    db_director.name = director_update.name
     db.commit()
-    db.refresh(db_movie)
-    return db_movie
+    db.refresh(db_director)
+    return db_director
 
 
-@router.delete('/movies/{movie_id}', status_code=status.HTTP_204_NO_CONTENT)
-def delete_movie(movie_id: int, db: Session = Depends(get_db)):
-    db_movie = db.query(models.Movie).filter(models.Movie.id == movie_id).first()
-    if not db_movie:
-        raise HTTPException(status_code=404, detail="Movie not found")
-    db.delete(db_movie)
+@router.delete('/directors/{director_id}', status_code=status.HTTP_204_NO_CONTENT)
+def delete_director(director_id: int, db: Session = Depends(get_db)):
+    db_director = db.query(models.Director).filter(models.Director.id == director_id).first()
+    if not db_director:
+        raise HTTPException(status_code=404, detail="Director not found")
+    db.delete(db_director)
     db.commit()
     return None
+
+
+@router.get('/directors/{director_id}/movies', response_model=List[MovieSchema])
+def get_director_movies(director_id: int, db: Session = Depends(get_db)):
+    if not db.query(models.Director).filter(models.Director.id == director_id).first():
+        raise HTTPException(status_code=404, detail="Director not found")
+    db_movies = db.query(MovieModel).filter(MovieModel.director_id == director_id).all()
+    return db_movies
