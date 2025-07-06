@@ -1,5 +1,5 @@
 
-# Rest API Example - Live Coding Session
+# Rest API Example - Sample project
 
 ![PyPI - Python Version](https://img.shields.io/badge/python-3.9-blue)
 
